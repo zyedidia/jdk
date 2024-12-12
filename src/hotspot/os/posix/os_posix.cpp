@@ -71,6 +71,10 @@
 #include <unistd.h>
 #include <utmpx.h>
 
+extern "C" {
+#include "sobox.h"
+}
+
 #ifdef __APPLE__
   #include <crt_externs.h>
 #endif
@@ -701,8 +705,17 @@ void* os::get_default_process_handle() {
 #endif
 }
 
+extern bool sbx_init_done;
+
 void* os::dll_lookup(void* handle, const char* name) {
-  return dlsym(handle, name);
+    // zby DLSYM HERE
+  void* result = dlsym(handle, name);
+  if (!result && sbx_init_done) {
+      fprintf(stderr, "jvm: sbx_dlsymfn(%p, \"%s\")\n", handle, name);
+      result = sbx_dlsymfn(handle, name, "");
+      fprintf(stderr, "jvm: sbx_dlsymfn returned %p\n", result);
+  }
+  return result;
 }
 
 void os::dll_unload(void *lib) {

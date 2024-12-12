@@ -120,6 +120,10 @@
   #include <sched.h>
 #endif
 
+extern "C" {
+#include "sobox.h"
+}
+
 // if RUSAGE_THREAD for getrusage() has not been defined, do it here. The code calling
 // getrusage() is prepared to handle the associated failure.
 #ifndef RUSAGE_THREAD
@@ -1480,10 +1484,12 @@ class VM_LinuxDllLoad: public VM_Operation {
 };
 
 void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
+
   void * result = NULL;
   bool load_attempted = false;
 
   log_info(os)("attempting shared library load of %s", filename);
+  fprintf(stderr, "jvm: loading dylib %s\n", filename);
 
   // Check whether the library to load might change execution rights
   // of the stack. If they are changed, the protection of the stack
@@ -1735,9 +1741,31 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   return NULL;
 }
 
+static Sobox sbx;
+bool sbx_init_done;
+
 void * os::Linux::dlopen_helper(const char *filename, char *ebuf,
                                 int ebuflen) {
-  void * result = ::dlopen(filename, RTLD_LAZY);
+  bool use_sobox = false;
+  if (strstr(filename, "_lfi") != NULL) {
+      use_sobox = true;
+  }
+
+  if (use_sobox && !sbx_init_done) {
+      bool ok = sbx_init(&sbx);
+      assert(ok);
+      sbx_init_done = true;
+  }
+
+// zby DLOPEN HERE
+  void * result;
+  if (!use_sobox) {
+    result = ::dlopen(filename, RTLD_LAZY);
+  } else {
+    fprintf(stderr, "jvm: sbx_dlopen(\"%s\")\n", filename);
+    result = sbx_dlopen(&sbx, filename, RTLD_LAZY);
+    fprintf(stderr, "jvm: sbx_dlopen returned %p\n", result);
+  }
   if (result == NULL) {
     const char* error_report = ::dlerror();
     if (error_report == NULL) {
