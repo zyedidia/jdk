@@ -48,7 +48,7 @@ JVM_ASFLAGS += $(EXTRA_ASFLAGS)
 
 JVM_LIBS += \
     $(JVM_LIBS_FEATURES) \
-    -lsobox \
+    -llfi \
     #
 
 # These files and directories are always excluded

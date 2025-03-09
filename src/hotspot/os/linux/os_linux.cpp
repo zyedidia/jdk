@@ -121,7 +121,7 @@
 #endif
 
 extern "C" {
-#include "sobox.h"
+#include "lfi_tux.h"
 }
 
 // if RUSAGE_THREAD for getrusage() has not been defined, do it here. The code calling
@@ -1741,31 +1741,15 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   return NULL;
 }
 
-static Sobox sbx;
-bool sbx_init_done;
-
 void * os::Linux::dlopen_helper(const char *filename, char *ebuf,
                                 int ebuflen) {
-  bool use_sobox = false;
+  bool use_lfi = false;
   if (strstr(filename, "_lfi") != NULL) {
-      use_sobox = true;
-  }
-
-  if (use_sobox && !sbx_init_done) {
-      bool ok = sbx_init(&sbx);
-      assert(ok);
-      sbx_init_done = true;
+      use_lfi = true;
   }
 
 // zby DLOPEN HERE
-  void * result;
-  if (!use_sobox) {
-    result = ::dlopen(filename, RTLD_LAZY);
-  } else {
-    fprintf(stderr, "jvm: sbx_dlopen(\"%s\")\n", filename);
-    result = sbx_dlopen(&sbx, filename, RTLD_LAZY);
-    fprintf(stderr, "jvm: sbx_dlopen returned %p\n", result);
-  }
+  void * result = ::dlopen(filename, RTLD_LAZY);
   if (result == NULL) {
     const char* error_report = ::dlerror();
     if (error_report == NULL) {
@@ -1778,6 +1762,13 @@ void * os::Linux::dlopen_helper(const char *filename, char *ebuf,
     Events::log_dll_message(NULL, "Loading shared library %s failed, %s", filename, error_report);
     log_info(os)("shared library load of %s failed, %s", filename, error_report);
   } else {
+    if (use_lfi) {
+      // initialize LFI library
+      void (*native_box_init)(void*) = reinterpret_cast<void (*)(void*)>(::dlsym(result, "native_box_init"));
+      native_box_init(lfi_libcalls());
+      printf("initialized LFI library\n");
+    }
+
     Events::log_dll_message(NULL, "Loaded shared library %s", filename);
     log_info(os)("shared library load of %s was successful", filename);
   }
