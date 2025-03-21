@@ -1745,7 +1745,7 @@ void * os::Linux::dlopen_helper(const char *filename, char *ebuf,
                                 int ebuflen) {
   bool use_lfi = false;
   if (strstr(filename, "_lfi") != NULL) {
-      use_lfi = true;
+    use_lfi = true;
   }
 
 // zby DLOPEN HERE
