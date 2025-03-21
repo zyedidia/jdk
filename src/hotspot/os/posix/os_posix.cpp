@@ -702,6 +702,7 @@ void* os::get_default_process_handle() {
 }
 
 void* os::dll_lookup(void* handle, const char* name) {
+    // zby DLSYM HERE
   return dlsym(handle, name);
 }
 
