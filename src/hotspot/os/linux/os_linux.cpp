@@ -1877,7 +1877,6 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   return nullptr;
 }
 
-<<<<<<< HEAD
 void * os::Linux::dlopen_helper(const char *filename, char *ebuf, int ebuflen) {
 #ifndef IA32
   bool ieee_handling = IEEE_subnormal_handling_OK();
