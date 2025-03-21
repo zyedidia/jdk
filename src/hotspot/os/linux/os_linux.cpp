@@ -132,6 +132,10 @@
   #include <sched.h>
 #endif
 
+extern "C" {
+#include "lfi_tux.h"
+}
+
 // if RUSAGE_THREAD for getrusage() has not been defined, do it here. The code calling
 // getrusage() is prepared to handle the associated failure.
 #ifndef RUSAGE_THREAD
@@ -1617,9 +1621,11 @@ class VM_LinuxDllLoad: public VM_Operation {
 
 void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   void * result = nullptr;
+
   bool load_attempted = false;
 
   log_info(os)("attempting shared library load of %s", filename);
+  fprintf(stderr, "jvm: loading dylib %s\n", filename);
 
   // Check whether the library to load might change execution rights
   // of the stack. If they are changed, the protection of the stack
@@ -1871,6 +1877,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   return nullptr;
 }
 
+<<<<<<< HEAD
 void * os::Linux::dlopen_helper(const char *filename, char *ebuf, int ebuflen) {
 #ifndef IA32
   bool ieee_handling = IEEE_subnormal_handling_OK();
@@ -1904,8 +1911,13 @@ void * os::Linux::dlopen_helper(const char *filename, char *ebuf, int ebuflen) {
   assert(rtn == 0, "fegetenv must succeed");
 #endif // IA32
 
+  bool use_lfi = false;
+  if (strstr(filename, "_lfi") != NULL) {
+    use_lfi = true;
+  }
   void* result;
   JFR_ONLY(NativeLibraryLoadEvent load_event(filename, &result);)
+  // zby DLOPEN HERE
   result = ::dlopen(filename, RTLD_LAZY);
   if (result == nullptr) {
     const char* error_report = ::dlerror();
@@ -1920,6 +1932,13 @@ void * os::Linux::dlopen_helper(const char *filename, char *ebuf, int ebuflen) {
     log_info(os)("shared library load of %s failed, %s", filename, error_report);
     JFR_ONLY(load_event.set_error_msg(error_report);)
   } else {
+    if (use_lfi) {
+      // initialize LFI library
+      void (*native_box_init)(void*) = reinterpret_cast<void (*)(void*)>(::dlsym(result, "native_box_init"));
+      native_box_init(lfi_libcalls());
+      printf("initialized LFI library\n");
+    }
+
     Events::log_dll_message(nullptr, "Loaded shared library %s", filename);
     log_info(os)("shared library load of %s was successful", filename);
 #ifndef IA32
