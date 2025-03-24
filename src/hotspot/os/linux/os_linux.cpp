@@ -1910,10 +1910,6 @@ void * os::Linux::dlopen_helper(const char *filename, char *ebuf, int ebuflen) {
   assert(rtn == 0, "fegetenv must succeed");
 #endif // IA32
 
-  bool use_lfi = false;
-  if (strstr(filename, "_lfi") != NULL) {
-    use_lfi = true;
-  }
   void* result;
   JFR_ONLY(NativeLibraryLoadEvent load_event(filename, &result);)
   // zby DLOPEN HERE
@@ -1931,11 +1927,10 @@ void * os::Linux::dlopen_helper(const char *filename, char *ebuf, int ebuflen) {
     log_info(os)("shared library load of %s failed, %s", filename, error_report);
     JFR_ONLY(load_event.set_error_msg(error_report);)
   } else {
-    if (use_lfi) {
+    void (*lfi_lib_init)(void*) = reinterpret_cast<void (*)(void*)>(::dlsym(result, "lfi_lib_init"));
+    if (lfi_lib_init) {
       // initialize LFI library
-      void (*native_box_init)(void*) = reinterpret_cast<void (*)(void*)>(::dlsym(result, "native_box_init"));
-      native_box_init(lfi_libcalls());
-      printf("initialized LFI library\n");
+      lfi_lib_init(lfi_libcalls());
     }
 
     Events::log_dll_message(nullptr, "Loaded shared library %s", filename);
